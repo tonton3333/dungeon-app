@@ -876,7 +876,12 @@ export default function GamePage() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <header className="sticky top-0 z-10">
-        {character && <StatusBar character={character} floor={currentFloor} />}
+        {character && (
+          <StatusBar
+            character={phase === 'battle' && battleState ? { ...character, stats: battleState.playerStats } : character}
+            floor={currentFloor}
+          />
+        )}
         <div className="flex justify-between items-center px-4 py-1 bg-gray-900/50 text-xs">
           <Link href="/" className="text-gray-600 hover:text-gray-400 transition-colors">
             ← タイトルへ
