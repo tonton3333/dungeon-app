@@ -144,6 +144,7 @@ export async function fetchRankings(): Promise<RankingEntry[]> {
     .select('id, username, character_name, job, floor_reached, is_clear, true_clear, score, created_at')
     .order('true_clear',    { ascending: false })
     .order('is_clear',      { ascending: false })
+    .order('score',         { ascending: false })
     .order('floor_reached', { ascending: false })
     .order('created_at',    { ascending: true })
     .limit(50);
