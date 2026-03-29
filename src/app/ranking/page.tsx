@@ -54,8 +54,7 @@ function RankRow({ entry, rank }: { entry: RankingEntry; rank: number }) {
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <span>{jobIcon} {jobLabel}</span>
-          <span>Lv.{entry.level}</span>
-          <span>{entry.playerName}</span>
+<span>{entry.playerName}</span>
           <span>
             {entry.trueClear ? `全${entry.floor}層真クリア` : entry.isCleared ? `全${entry.floor}層クリア` : `第${entry.floor}層で力尽きる`}
           </span>
