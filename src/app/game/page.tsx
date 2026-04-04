@@ -35,6 +35,11 @@ import { generateNarration, generateEnemyDetails } from '@/lib/claudeApi';
 import * as SE from '@/lib/soundEffects';
 import * as BGM from '@/lib/bgm';
 import { getCurrentUserInfo } from '@/lib/supabase';
+import StatusBar from '@/components/StatusBar';
+import CharacterCreate from '@/components/CharacterCreate';
+import DungeonView from '@/components/DungeonView';
+import BattleView from '@/components/BattleView';
+import HelpModal from '@/components/HelpModal';
 
 // ---- API Route ヘルパー ----
 async function saveCharacterToDB(character: Character, userId: string): Promise<void> {
@@ -78,12 +83,6 @@ async function saveRankingToDB(params: {
     body: JSON.stringify(params),
   }).catch(err => console.error('[Game] saveRankingToDB error:', err));
 }
-import StatusBar from '@/components/StatusBar';
-import CharacterCreate from '@/components/CharacterCreate';
-import DungeonView from '@/components/DungeonView';
-import BattleView from '@/components/BattleView';
-import HelpModal from '@/components/HelpModal';
-
 const SAVE_KEY = 'dungeon-save';
 const RANKING_KEY = 'dungeon-ranking';
 const HELP_SEEN_KEY = 'dungeon-help-seen';

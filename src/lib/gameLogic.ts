@@ -12,6 +12,26 @@ import {
   calculateScore,
 } from '@/types/game';
 
+// ========== 定数 ==========
+
+export const TOTAL_FLOORS = 5;
+export const BOSS_FLOOR = TOTAL_FLOORS;
+export const EXTRA_BOSS_FLOOR = 10;
+export const MAX_ITEMS = 8;
+
+// ========== 敵テンプレート型 ==========
+
+interface EnemyTemplate {
+  name: string;
+  description: string;
+  catchphrase: string;
+  hp: number;
+  mp: number;
+  attack: number;
+  defense: number;
+  exp: number;
+}
+
 // ========== キャラクター作成 ==========
 
 export function createCharacter(name: string, jobClass: JobClass): Character {
@@ -150,7 +170,7 @@ export const BARRIER_MP_COST: Record<JobClass, number> = {
 
 // ========== 敵生成（フォールバック用 — Claude APIなしの基本実装） ==========
 
-const FLOOR_ENEMY_TEMPLATES: Record<number, { name: string; description: string; catchphrase: string; hp: number; mp: number; attack: number; defense: number; exp: number }[]> = {
+const FLOOR_ENEMY_TEMPLATES: Record<number, EnemyTemplate[]> = {
   1: [
     { name: 'スライム', description: 'ぷるぷると震える青いスライム。', catchphrase: 'ぷるぷる！', hp: 30, mp: 0, attack: 5, defense: 2, exp: 20 },
     { name: 'コウモリ', description: '翼をはためかせて突進してくる。', catchphrase: 'キィィィ！', hp: 25, mp: 0, attack: 7, defense: 1, exp: 18 },
@@ -177,7 +197,7 @@ const FLOOR_ENEMY_TEMPLATES: Record<number, { name: string; description: string;
   ],
 };
 
-const BOSS: { name: string; description: string; catchphrase: string; hp: number; mp: number; attack: number; defense: number; exp: number } = {
+const BOSS: EnemyTemplate = {
   name: '魔王ダークロード',
   description: 'ダンジョンの最深部に君臨する絶対的な悪の王。その力は計り知れない。',
   catchphrase: 'ふははは！よくぞここまで来た。だが、貴様の旅はここで終わりだ！',
@@ -190,7 +210,7 @@ const BOSS: { name: string; description: string; catchphrase: string; hp: number
 
 // ========== エクストラステージ（6〜10F）==========
 
-const EXTRA_FLOOR_ENEMY_TEMPLATES: Record<number, { name: string; description: string; catchphrase: string; hp: number; mp: number; attack: number; defense: number; exp: number }[]> = {
+const EXTRA_FLOOR_ENEMY_TEMPLATES: Record<number, EnemyTemplate[]> = {
   6: [
     { name: '冥界の騎士', description: '死者の国から召喚された漆黒の騎士。', catchphrase: '貴様は来るべきではなかった！', hp: 280, mp: 0, attack: 48, defense: 26, exp: 300 },
     { name: '魔獣ヘルウルフ', description: '地獄の炎に包まれた巨大な狼型魔物。', catchphrase: 'グオォォォ！', hp: 250, mp: 0, attack: 45, defense: 23, exp: 280 },
@@ -224,83 +244,13 @@ const TRUE_BOSS = {
   exp: 5000,
 };
 
-export function generateEnemy(floor: number, isBoss: boolean): Enemy {
-  if (isBoss) {
-    // 真ラスボス（10F）
-    if (floor === EXTRA_BOSS_FLOOR) {
-      return {
-        id: crypto.randomUUID(),
-        name: TRUE_BOSS.name,
-        description: TRUE_BOSS.description,
-        catchphrase: TRUE_BOSS.catchphrase,
-        stats: {
-          hp: TRUE_BOSS.hp,
-          maxHp: TRUE_BOSS.hp,
-          mp: TRUE_BOSS.mp,
-          maxMp: TRUE_BOSS.mp,
-          attack: TRUE_BOSS.attack,
-          defense: TRUE_BOSS.defense,
-          speed: 18,
-          luck: 10,
-        },
-        expReward: TRUE_BOSS.exp,
-        itemDrop: createWeapon('混沌神の欠片', 60),
-        isBoss: true,
-      };
-    }
-    // 通常ボス（5F）
-    return {
-      id: crypto.randomUUID(),
-      name: BOSS.name,
-      description: BOSS.description,
-      catchphrase: BOSS.catchphrase,
-      stats: {
-        hp: BOSS.hp,
-        maxHp: BOSS.hp,
-        mp: BOSS.mp,
-        maxMp: BOSS.mp,
-        attack: BOSS.attack,
-        defense: BOSS.defense,
-        speed: 10,
-        luck: 5,
-      },
-      expReward: BOSS.exp,
-      itemDrop: createWeapon('魔王の剣', 30),
-      isBoss: true,
-    };
-  }
-
-  // エクストラフロア（6〜9F）
-  if (floor > TOTAL_FLOORS) {
-    const clampedFloor = Math.min(floor, 9) as 6 | 7 | 8 | 9;
-    const templates = EXTRA_FLOOR_ENEMY_TEMPLATES[clampedFloor];
-    const tmpl = templates[Math.floor(Math.random() * templates.length)];
-    return {
-      id: crypto.randomUUID(),
-      name: tmpl.name,
-      description: tmpl.description,
-      catchphrase: tmpl.catchphrase,
-      stats: {
-        hp: tmpl.hp,
-        maxHp: tmpl.hp,
-        mp: tmpl.mp,
-        maxMp: tmpl.mp,
-        attack: tmpl.attack,
-        defense: tmpl.defense,
-        speed: 10 + floor * 2,
-        luck: 5,
-      },
-      expReward: tmpl.exp,
-      itemDrop: rollItemDrop(floor),
-      isBoss: false,
-    };
-  }
-
-  // 通常フロア（1〜5F）
-  const clampedFloor = Math.min(floor, 5) as 1 | 2 | 3 | 4 | 5;
-  const templates = FLOOR_ENEMY_TEMPLATES[clampedFloor];
-  const tmpl = templates[Math.floor(Math.random() * templates.length)];
-
+function buildEnemyFromTemplate(
+  tmpl: EnemyTemplate,
+  speed: number,
+  luck: number,
+  itemDrop: Item | null,
+  isBoss = false,
+): Enemy {
   return {
     id: crypto.randomUUID(),
     name: tmpl.name,
@@ -313,13 +263,34 @@ export function generateEnemy(floor: number, isBoss: boolean): Enemy {
       maxMp: tmpl.mp,
       attack: tmpl.attack,
       defense: tmpl.defense,
-      speed: 5 + floor * 2,
-      luck: 3,
+      speed,
+      luck,
     },
     expReward: tmpl.exp,
-    itemDrop: rollItemDrop(floor),
-    isBoss: false,
+    itemDrop,
+    isBoss,
   };
+}
+
+export function generateEnemy(floor: number, isBoss: boolean): Enemy {
+  if (isBoss) {
+    if (floor === EXTRA_BOSS_FLOOR) {
+      return buildEnemyFromTemplate(TRUE_BOSS, 18, 10, createWeapon('混沌神の欠片', 60), true);
+    }
+    return buildEnemyFromTemplate(BOSS, 10, 5, createWeapon('魔王の剣', 30), true);
+  }
+
+  if (floor > TOTAL_FLOORS) {
+    const clampedFloor = Math.min(floor, 9) as 6 | 7 | 8 | 9;
+    const templates = EXTRA_FLOOR_ENEMY_TEMPLATES[clampedFloor];
+    const tmpl = templates[Math.floor(Math.random() * templates.length)];
+    return buildEnemyFromTemplate(tmpl, 10 + floor * 2, 5, rollItemDrop(floor));
+  }
+
+  const clampedFloor = Math.min(floor, 5) as 1 | 2 | 3 | 4 | 5;
+  const templates = FLOOR_ENEMY_TEMPLATES[clampedFloor];
+  const tmpl = templates[Math.floor(Math.random() * templates.length)];
+  return buildEnemyFromTemplate(tmpl, 5 + floor * 2, 3, rollItemDrop(floor));
 }
 
 function rollItemDrop(floor: number): Item | null {
@@ -557,6 +528,47 @@ export function playerMagic(state: BattleState, character: Character): BattleSta
   return newState;
 }
 
+/** 攻撃アイテム使用時のダメージ計算とログ生成 */
+function applyOffensiveItem(state: BattleState, item: Item): BattleState {
+  if (item.offensiveEffect === 'poison') {
+    state.poisonTurns = 3;
+    state.poisonDamage = item.value;
+    state.logs.push({
+      turn: state.turn,
+      actor: 'player',
+      action: 'item',
+      message: `${item.name}を使った！${state.enemy.name}は毒状態になった！（3ターン・${item.value}/ターン）`,
+    });
+  } else if (item.offensiveEffect === 'boss_bonus') {
+    const base = Math.floor(item.value * (0.85 + Math.random() * 0.3));
+    const dmg = state.enemy.isBoss ? Math.floor(base * 1.8) : base;
+    state.enemy.stats.hp = Math.max(0, state.enemy.stats.hp - dmg);
+    state.logs.push({
+      turn: state.turn,
+      actor: 'player',
+      action: 'item',
+      damage: dmg,
+      message: state.enemy.isBoss
+        ? `${item.name}で大爆発！${state.enemy.name}に${dmg}の大ダメージ！`
+        : `${item.name}を使った！${state.enemy.name}に${dmg}のダメージ！`,
+    });
+    if (state.enemy.stats.hp <= 0) { state.phase = 'result'; state.result = 'win'; return state; }
+  } else {
+    const dmg = Math.max(1, Math.floor(item.value * (0.85 + Math.random() * 0.3)));
+    state.enemy.stats.hp = Math.max(0, state.enemy.stats.hp - dmg);
+    state.logs.push({
+      turn: state.turn,
+      actor: 'player',
+      action: 'item',
+      damage: dmg,
+      message: `${item.name}を使った！${state.enemy.name}に${dmg}のダメージ！`,
+    });
+    if (state.enemy.stats.hp <= 0) { state.phase = 'result'; state.result = 'win'; return state; }
+  }
+  state.phase = 'enemy_turn';
+  return state;
+}
+
 export function playerUseItem(
   state: BattleState,
   character: Character,
@@ -577,34 +589,20 @@ export function playerUseItem(
   }
 
   const item = newChar.items[itemIndex];
+  newChar.items.splice(itemIndex, 1);
 
   if (item.type === 'potion' && item.specialEffect === 'awaken') {
-    newChar.items.splice(itemIndex, 1);
     newState.playerSleepTurns = 0;
-    newState.logs.push({
-      turn: newState.turn,
-      actor: 'player',
-      action: 'item',
-      message: `${item.name}を使った！眠りから覚めた！`,
-    });
+    newState.logs.push({ turn: newState.turn, actor: 'player', action: 'item', message: `${item.name}を使った！眠りから覚めた！` });
     newState.phase = 'enemy_turn';
+
   } else if (item.type === 'potion') {
     const before = newState.playerStats.hp;
-    newState.playerStats.hp = Math.min(
-      newState.playerStats.maxHp,
-      newState.playerStats.hp + item.value
-    );
+    newState.playerStats.hp = Math.min(newState.playerStats.maxHp, newState.playerStats.hp + item.value);
     const healed = newState.playerStats.hp - before;
-    newChar.items.splice(itemIndex, 1);
-
-    newState.logs.push({
-      turn: newState.turn,
-      actor: 'player',
-      action: 'item',
-      heal: healed,
-      message: `${item.name}を使った！HPが${healed}回復した！`,
-    });
+    newState.logs.push({ turn: newState.turn, actor: 'player', action: 'item', heal: healed, message: `${item.name}を使った！HPが${healed}回復した！` });
     newState.phase = 'enemy_turn';
+
   } else if (item.type === 'mp_potion') {
     const before = newState.playerStats.mp;
     const isElixir = item.value >= newState.playerStats.maxMp;
@@ -612,67 +610,18 @@ export function playerUseItem(
       ? newState.playerStats.maxMp
       : Math.min(newState.playerStats.maxMp, newState.playerStats.mp + item.value);
     const restored = newState.playerStats.mp - before;
-    newChar.items.splice(itemIndex, 1);
-
     newState.logs.push({
-      turn: newState.turn,
-      actor: 'player',
-      action: 'item',
-      heal: restored,
-      message: isElixir
-        ? `${item.name}を使った！MPが全回復した！`
-        : `${item.name}を使った！MPが${restored}回復した！`,
+      turn: newState.turn, actor: 'player', action: 'item', heal: restored,
+      message: isElixir ? `${item.name}を使った！MPが全回復した！` : `${item.name}を使った！MPが${restored}回復した！`,
     });
     newState.phase = 'enemy_turn';
-  } else if (item.type === 'offensive') {
-    newChar.items.splice(itemIndex, 1);
 
-    if (item.offensiveEffect === 'poison') {
-      newState.poisonTurns = 3;
-      newState.poisonDamage = item.value;
-      newState.logs.push({
-        turn: newState.turn,
-        actor: 'player',
-        action: 'item',
-        message: `${item.name}を使った！${newState.enemy.name}は毒状態になった！（3ターン・${item.value}/ターン）`,
-      });
-      newState.phase = 'enemy_turn';
-    } else if (item.offensiveEffect === 'boss_bonus') {
-      const base = Math.floor(item.value * (0.85 + Math.random() * 0.3));
-      const dmg = newState.enemy.isBoss ? Math.floor(base * 1.8) : base;
-      newState.enemy.stats.hp = Math.max(0, newState.enemy.stats.hp - dmg);
-      newState.logs.push({
-        turn: newState.turn,
-        actor: 'player',
-        action: 'item',
-        damage: dmg,
-        message: newState.enemy.isBoss
-          ? `${item.name}で大爆発！${newState.enemy.name}に${dmg}の大ダメージ！`
-          : `${item.name}を使った！${newState.enemy.name}に${dmg}のダメージ！`,
-      });
-      if (newState.enemy.stats.hp <= 0) { newState.phase = 'result'; newState.result = 'win'; }
-      else newState.phase = 'enemy_turn';
-    } else {
-      // 通常攻撃アイテム（火炎瓶・雷の巻物）
-      const dmg = Math.max(1, Math.floor(item.value * (0.85 + Math.random() * 0.3)));
-      newState.enemy.stats.hp = Math.max(0, newState.enemy.stats.hp - dmg);
-      newState.logs.push({
-        turn: newState.turn,
-        actor: 'player',
-        action: 'item',
-        damage: dmg,
-        message: `${item.name}を使った！${newState.enemy.name}に${dmg}のダメージ！`,
-      });
-      if (newState.enemy.stats.hp <= 0) { newState.phase = 'result'; newState.result = 'win'; }
-      else newState.phase = 'enemy_turn';
-    }
+  } else if (item.type === 'offensive') {
+    applyOffensiveItem(newState, item);
+
   } else {
-    newState.logs.push({
-      turn: newState.turn,
-      actor: 'player',
-      action: 'item',
-      message: `${item.name}はバトル中に使えない！`,
-    });
+    newChar.items.splice(itemIndex, 0, item); // 使えなかったので元の位置に戻す
+    newState.logs.push({ turn: newState.turn, actor: 'player', action: 'item', message: `${item.name}はバトル中に使えない！` });
   }
 
   return { battleState: newState, updatedCharacter: newChar };
@@ -1035,9 +984,4 @@ function deepCopyCharacter(character: Character): Character {
   };
 }
 
-// ========== 定数 ==========
 
-export const TOTAL_FLOORS = 5;
-export const BOSS_FLOOR = TOTAL_FLOORS;
-export const EXTRA_BOSS_FLOOR = 10; // 真ラスボスの階層
-export const MAX_ITEMS = 8;
